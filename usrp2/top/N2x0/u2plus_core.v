@@ -204,6 +204,9 @@ module u2plus_core
    
    wire 	 run_rx0, run_rx1, run_tx;
    reg 		 run_rx0_d1, run_rx1_d1;
+
+   // moved from below (was just above to vita_tx_chain)
+   wire [31:0]   sample_tx;
    
    // ///////////////////////////////////////////////////////////////////////////////////////////////
    // Wishbone Single Master INTERCON
@@ -437,11 +440,16 @@ module u2plus_core
    // GPIOs
 
    wire [31:0] gpio_readback;
+
+   wire magic_sample;
+   // when high, enable radio tx
+   // when pegged to 1,1 switch tx/rx switch to rx
+   assign magic_sample_tx_enable = sample_tx != 32'h7fff7fff;
    
    gpio_atr #(.BASE(SR_GPIO), .WIDTH(32)) 
    gpio_atr(.clk(dsp_clk),.reset(dsp_rst),
 	    .set_stb(set_stb_dsp),.set_addr(set_addr_dsp),.set_data(set_data_dsp),
-	    .rx(run_rx0_d1 | run_rx1_d1), .tx(run_tx),
+	    .rx(run_rx0_d1 | run_rx1_d1), .tx(magic_sample_tx_enable),
 	    .gpio({io_tx,io_rx}), .gpio_readback(gpio_readback) );
 
    // /////////////////////////////////////////////////////////////////////////
@@ -706,7 +714,7 @@ module u2plus_core
 	.debug2(debug_extfifo2) );
 
    wire [23:0] 	 tx_fe_i, tx_fe_q;
-   wire [31:0]   sample_tx;
+   
    wire strobe_tx;
    
    vita_tx_chain #(.BASE(SR_TX_CTRL), .FIFOSIZE(DSP_TX_FIFOSIZE),
