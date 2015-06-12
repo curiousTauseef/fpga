@@ -206,7 +206,8 @@ module u2plus_core
    reg 		 run_rx0_d1, run_rx1_d1;
 
    // moved from below (was just above to vita_tx_chain)
-   wire [31:0]   sample_tx;
+   wire [31:0]   sample_tx;      // our optionally modified value
+   wire [31:0]   sample_tx_orig; // the actual value we got from ethernet
    
    // ///////////////////////////////////////////////////////////////////////////////////////////////
    // Wishbone Single Master INTERCON
@@ -445,6 +446,7 @@ module u2plus_core
    // when high, enable radio tx
    // when pegged to 1,1 switch tx/rx switch to rx
    assign magic_sample_tx_enable = sample_tx != 32'h7fff7fff;
+   assign sample_tx = magic_sample_tx_enable?sample_tx_orig:32'h00000000;
    
    gpio_atr #(.BASE(SR_GPIO), .WIDTH(32)) 
    gpio_atr(.clk(dsp_clk),.reset(dsp_rst),
@@ -573,6 +575,7 @@ module u2plus_core
    
    wire [7:0] 	 led_src, led_sw;
    wire [7:0] 	 led_hw = {run_tx, (run_rx0_d1 | run_rx1_d1), clk_status, serdes_link_up & good_sync, 1'b0};
+   //                        A
    
    setting_reg #(.my_addr(SR_MISC+3),.width(8)) sr_led
      (.clk(dsp_clk),.rst(dsp_rst),.strobe(set_stb_dsp),.addr(set_addr_dsp),.in(set_data_dsp),.out(led_sw),.changed());
@@ -728,7 +731,7 @@ module u2plus_core
       .vita_time(vita_time),
       .tx_data_i(tx_data), .tx_src_rdy_i(tx_src_rdy), .tx_dst_rdy_o(tx_dst_rdy),
       .err_data_o(tx_err_data), .err_src_rdy_o(tx_err_src_rdy), .err_dst_rdy_i(tx_err_dst_rdy),
-      .sample(sample_tx), .strobe(strobe_tx),
+      .sample(sample_tx_orig), .strobe(strobe_tx),
       .underrun(underrun), .run(run_tx), .clear_o(clear_tx),
       .debug(debug_vt));
 
