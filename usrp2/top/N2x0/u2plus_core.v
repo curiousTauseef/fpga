@@ -442,11 +442,28 @@ module u2plus_core
 
    wire [31:0] gpio_readback;
 
-   wire magic_sample;
+   // moved from line 732
+   wire strobe_tx;
+
+   reg magic_sample_tx_enable;
+   //reg [5:0]      count;
+
    // when high, enable radio tx
    // when pegged to 1,1 switch tx/rx switch to rx
-   assign magic_sample_tx_enable = sample_tx != 32'h7fff7fff;
-   assign sample_tx = magic_sample_tx_enable?sample_tx_orig:32'h00000000;
+   always @(posedge dsp_clk)
+   begin
+         // send 1,1 to enable rx
+         if( sample_tx_orig == 32'h7fff7fff)
+            magic_sample_tx_enable = 0;
+         
+         // send -1,-1 to enable tx
+         if( sample_tx_orig == 32'h80018001 )
+            magic_sample_tx_enable = 1;
+   end
+
+   //assign magic_sample_tx_enable = sample_tx != 32'h7fff7fff;
+   // assign sample_tx = magic_sample_tx_enable?sample_tx_orig:32'h00000000;
+   assign sample_tx = sample_tx_orig;
    
    gpio_atr #(.BASE(SR_GPIO), .WIDTH(32)) 
    gpio_atr(.clk(dsp_clk),.reset(dsp_rst),
@@ -574,8 +591,8 @@ module u2plus_core
    //    In Rev3 there are only 6 leds, and the highest one is on the ETH connector
    
    wire [7:0] 	 led_src, led_sw;
-   wire [7:0] 	 led_hw = {run_tx, (run_rx0_d1 | run_rx1_d1), clk_status, serdes_link_up & good_sync, 1'b0};
-   //                        A
+   wire [7:0] 	 led_hw = {magic_sample_tx_enable, (run_rx0_d1 | run_rx1_d1), clk_status, serdes_link_up & good_sync, 1'b0};
+   //                        A                            C                      E             B                       not connected
    
    setting_reg #(.my_addr(SR_MISC+3),.width(8)) sr_led
      (.clk(dsp_clk),.rst(dsp_rst),.strobe(set_stb_dsp),.addr(set_addr_dsp),.in(set_data_dsp),.out(led_sw),.changed());
@@ -718,7 +735,7 @@ module u2plus_core
 
    wire [23:0] 	 tx_fe_i, tx_fe_q;
    
-   wire strobe_tx;
+   
    
    vita_tx_chain #(.BASE(SR_TX_CTRL), .FIFOSIZE(DSP_TX_FIFOSIZE),
 		   .REPORT_ERROR(1), .DO_FLOW_CONTROL(1),
