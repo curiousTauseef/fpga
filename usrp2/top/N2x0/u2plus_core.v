@@ -448,8 +448,8 @@ module u2plus_core
    reg magic_sample_tx_enable;
    //reg [5:0]      count;
 
-   // when high, enable radio tx
-   // when pegged to 1,1 switch tx/rx switch to rx
+   // magic_sample_tx_enable controls our hacked tx/rx switch
+   // if sample_tx_orig matches either (1,1) or (-1,-1) magic samples, switch tx/rx switch
    always @(posedge dsp_clk)
    begin
          // send 1,1 to enable rx
@@ -652,7 +652,9 @@ module u2plus_core
    
    // /////////////////////////////////////////////////////////////////////////
    // DSP RX 0
+   // This rx seems to handle TX/RX and RX2 antenna ports
    wire [31:0] 	 sample_rx0;
+   wire [31:0] 	 sample_rx0_orig;
    wire 	 strobe_rx0, clear_rx0;
 
    always @(posedge dsp_clk)
@@ -663,8 +665,11 @@ module u2plus_core
       .set_stb(set_stb_dsp),.set_addr(set_addr_dsp),.set_data(set_data_dsp),
       .set_stb_user(set_stb_user), .set_addr_user(set_addr_user), .set_data_user(set_data_user),
       .rx_fe_i(rx_fe_i),.rx_fe_q(rx_fe_q),
-      .sample(sample_rx0), .run(run_rx0_d1), .strobe(strobe_rx0),
+      .sample(sample_rx0_orig), .run(run_rx0_d1), .strobe(strobe_rx0),
       .debug() );
+
+   // MAGIC sample mux
+   assign sample_rx0 = magic_sample_tx_enable ? 32'h80018001 : sample_rx0_orig;  // -1,-1 is the tx magic sample, force all rx samples to this when we are in tx mode
 
    vita_rx_chain #(.BASE(SR_RX_CTRL0),.UNIT(0),.FIFOSIZE(DSP_RX_FIFOSIZE), .DSP_NUMBER(0)) vita_rx_chain0
      (.clk(dsp_clk), .reset(dsp_rst),
